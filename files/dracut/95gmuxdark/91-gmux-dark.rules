@@ -1,0 +1,3 @@
+# initramfs only: backlight off until amdgpu has re-initialised the eDP panel (hides boot flicker)
+ACTION=="add", SUBSYSTEM=="backlight", KERNEL=="gmux_backlight", RUN+="/usr/lib/gmux-dark.sh dark"
+ACTION=="add", SUBSYSTEM=="drm", ENV{DEVTYPE}=="drm_minor", KERNEL=="card[0-9]*", DRIVERS=="amdgpu", RUN+="/usr/lib/gmux-dark.sh restore 2"

@@ -1,0 +1,13 @@
+[Unit]
+Description=Restore display brightness after the boot-flicker hide (safety net)
+DefaultDependencies=no
+After=systemd-udevd.service
+Before=sysinit.target
+ConditionPathExists=/run/gmux-boot-brightness
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/mbp-gmux-dark restore 0
+
+[Install]
+WantedBy=sysinit.target

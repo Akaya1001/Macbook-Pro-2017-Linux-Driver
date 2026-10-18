@@ -1,0 +1,26 @@
+--- apple-ib-als.c.orig	2026-10-03 16:28:25.680816020 +0200
++++ apple-ib-als.c	2026-10-03 16:28:25.692151333 +0200
+@@ -225,8 +225,13 @@
+ 				    __s32 value)
+ {
+ 	__s32 buf[2] = { value, value };
++	struct iio_dev *iio_dev = READ_ONCE(als_dev->iio_dev);
+ 
+-	iio_push_to_buffers(als_dev->iio_dev, buf);
++	/* reports can arrive (e.g. GET_REPORT replies) before iio is set up */
++	if (!iio_dev)
++		return;
++
++	iio_push_to_buffers(iio_dev, buf);
+ 
+ 	if (als_dev->cur_hysteresis == APPLEALS_DYN_SENS)
+ 		appleals_update_dyn_sensitivity(als_dev, value);
+@@ -506,7 +511,7 @@
+ 		return rc;
+ 	}
+ 
+-	als_dev->iio_dev = iio_dev;
++	WRITE_ONCE(als_dev->iio_dev, iio_dev);
+ 
+ 	return 0;
+ }

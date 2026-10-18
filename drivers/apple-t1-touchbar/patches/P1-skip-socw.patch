@@ -1,0 +1,86 @@
+Based on AJ-dev-i60/t1-touchbar apple-ib-drv/apple-ibridge.c @ f089319655853eb90af1ec620ebb6908591f0b2c (GPL-2.0):
+skip the ACPI ASOC.SOCW power method on MacBookPro13,*/14,* (SOCW(1) hard-freezes the 14,3).
+
+--- apple-ibridge.c.orig	2026-10-03 16:19:34.749303069 +0200
++++ apple-ibridge.c	2026-10-03 16:19:34.761279517 +0200
+@@ -40,10 +40,12 @@
+ #include <linux/acpi.h>
+ #include "linux/apple-ibridge.h"
+ #include <linux/device.h>
++#include <linux/dmi.h>
+ #include <linux/hid.h>
+ #include <linux/list.h>
+ #include <linux/module.h>
+ #include <linux/slab.h>
++#include <linux/string.h>
+ #include <linux/usb.h>
+ 
+ #define USB_VENDOR_ID_APPLE		0x05ac
+@@ -466,6 +468,28 @@
+ #endif
+ };
+ 
++/*
++ * ASOC.SOCW(1) hard-freezes some T1 machines (MacBookPro14,3), so skip the
++ * ACPI power method there; the iBridge is powered by firmware anyway.
++ */
++static int skip_acpi_power = -1;
++module_param(skip_acpi_power, int, 0444);
++MODULE_PARM_DESC(skip_acpi_power,
++		 "Skip ASOC.SOCW: -1=auto (MacBookPro13,*/14,*), 0=force-run, 1=force-skip");
++
++static bool appleib_skip_acpi_power(void)
++{
++	const char *product;
++
++	if (skip_acpi_power >= 0)
++		return skip_acpi_power != 0;
++	product = dmi_get_system_info(DMI_PRODUCT_NAME);
++	if (!product)
++		return true;
++	return str_has_prefix(product, "MacBookPro13,") ||
++	       str_has_prefix(product, "MacBookPro14,");
++}
++
+ static struct appleib_device *appleib_alloc_device(struct acpi_device *acpi_dev)
+ {
+ 	struct appleib_device *ib_dev;
+@@ -487,10 +511,14 @@
+ 	}
+ 
+ 	/* ensure iBridge is powered on */
+-	sts = acpi_execute_simple_method(ib_dev->asoc_socw, NULL, 1);
+-	if (ACPI_FAILURE(sts))
+-		dev_warn(LOG_DEV(ib_dev), "SOCW(1) failed: %s\n",
+-			 acpi_format_exception(sts));
++	if (appleib_skip_acpi_power()) {
++		dev_info(LOG_DEV(ib_dev), "skipping ASOC.SOCW (skip_acpi_power)\n");
++	} else {
++		sts = acpi_execute_simple_method(ib_dev->asoc_socw, NULL, 1);
++		if (ACPI_FAILURE(sts))
++			dev_warn(LOG_DEV(ib_dev), "SOCW(1) failed: %s\n",
++				 acpi_format_exception(sts));
++	}
+ 
+ 	return ib_dev;
+ }
+@@ -528,6 +556,9 @@
+ 
+ 	ib_dev = acpi_driver_data(to_acpi_device(dev));
+ 
++	if (appleib_skip_acpi_power())
++		return 0;
++
+ 	rc = acpi_execute_simple_method(ib_dev->asoc_socw, NULL, 0);
+ 	if (ACPI_FAILURE(rc))
+ 		dev_warn(dev, "SOCW(0) failed: %s\n",
+@@ -543,6 +574,9 @@
+ 
+ 	ib_dev = acpi_driver_data(to_acpi_device(dev));
+ 
++	if (appleib_skip_acpi_power())
++		return 0;
++
+ 	rc = acpi_execute_simple_method(ib_dev->asoc_socw, NULL, 1);
+ 	if (ACPI_FAILURE(rc))
+ 		dev_warn(dev, "SOCW(1) failed: %s\n",

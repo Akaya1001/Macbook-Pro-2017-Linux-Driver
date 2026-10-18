@@ -1,0 +1,14 @@
+Base:     https://github.com/parport0/mbp-t1-touchbar-driver
+          commit 6d62f38c6b2c27da1becd311ad7b15826e58ed41 (2025-05-17)
+Original: Ronald Tschalär, "Apple iBridge / Touch Bar / ALS drivers",
+          https://lore.kernel.org/lkml/20190612083400.1015-1-ronald@innovation.ch/
+License:  GPL-2.0
+
+The .c files in this directory already contain patches/P1-P5 (applied in that
+order on top of the base commit). The patch files document each change.
+To get back to the base sources:
+    for p in P5 P4 P3 P2 P1; do patch -R -p0 < patches/$p-*.patch; done
+
+P1 (skip_acpi_power / SOCW skip) and the NULL check on sub_hdev in P4 are
+based on AJ-dev-i60/t1-touchbar apple-ib-drv/apple-ibridge.c
+(commit f089319655853eb90af1ec620ebb6908591f0b2c, GPL-2.0).

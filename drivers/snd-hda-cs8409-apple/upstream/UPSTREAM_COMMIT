@@ -1,0 +1,2 @@
+89b22ff90b86468b186706861dd18663562defa7 2026-09-06T09:46:18+01:00 It appears using the internal mike with headphones fix does not work nicely if use headsets with mike. Placing this fixup behind the build flag INTERNAL_MIKE_ONLY. If you wish to use it comment the default build flags in top Makefile and uncomment the line below internal mike only build flags
+https://github.com/davidjo/snd_hda_macbookpro

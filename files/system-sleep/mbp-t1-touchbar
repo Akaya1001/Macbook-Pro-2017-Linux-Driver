@@ -1,0 +1,5 @@
+#!/bin/sh
+# Apple T1 Touch Bar: after resume, re-bind only if the driver lost the device.
+case "$1/$2" in
+  post/*) sleep 2; /usr/local/sbin/mbp-t1-touchbar-bind | logger -t mbp-t1-touchbar ;;
+esac

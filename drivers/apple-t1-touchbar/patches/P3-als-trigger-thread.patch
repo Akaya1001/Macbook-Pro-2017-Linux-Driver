@@ -1,0 +1,33 @@
+--- apple-ib-als.c.p2	2026-10-03 16:32:20.121531769 +0200
++++ apple-ib-als.c	2026-10-03 16:32:20.140126306 +0200
+@@ -395,6 +395,19 @@
+ 	}
+ };
+ 
++/*
++ * Samples are pushed from the HID event handler, so the trigger never fires;
++ * a threaded handler is still required since the pollfunc is IRQF_ONESHOT.
++ */
++static irqreturn_t appleals_trigger_handler(int irq, void *p)
++{
++	struct iio_poll_func *pf = p;
++
++	iio_trigger_notify_done(pf->indio_dev->trig);
++
++	return IRQ_HANDLED;
++}
++
+ static const struct iio_trigger_ops appleals_trigger_ops = {
+ 	.set_trigger_state = &appleals_enable_events,
+ };
+@@ -479,8 +492,8 @@
+ 	iio_dev->modes = INDIO_DIRECT_MODE;
+ 
+ 	rc = devm_iio_triggered_buffer_setup(parent, iio_dev,
+-					     &iio_pollfunc_store_time, NULL,
+-					     NULL);
++					     &iio_pollfunc_store_time,
++					     &appleals_trigger_handler, NULL);
+ 	if (rc) {
+ 		hid_err(als_dev->hid_dev,
+ 			"Failed to set up iio triggered buffer: %d\n", rc);

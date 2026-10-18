@@ -1,0 +1,11 @@
+[Unit]
+Description=Bind the Apple T1 iBridge to the apple-ibridge driver
+After=systemd-udev-settle.service systemd-modules-load.service
+Wants=systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/mbp-t1-touchbar-bind
+
+[Install]
+WantedBy=multi-user.target

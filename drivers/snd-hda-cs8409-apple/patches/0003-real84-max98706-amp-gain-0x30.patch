@@ -1,0 +1,34 @@
+From: Akaya1001 <265734908+Akaya1001@users.noreply.github.com>
+Date: Fri, 3 Oct 2026 21:30:00 +0200
+Subject: [PATCH] patch_cirrus_real84.h: lower MAX98706 amp gain 0x01 -> 0x30 (-24 dB)
+
+Local change of this repository, not part of davidjo/snd_hda_macbookpro.
+For MacBookPro14,3 (codec subsystem 0x106b3900) the four MAX98706 speaker
+amps were programmed with DigitalVolCtrl 0x01 (nearly full gain). There is
+no hardware volume control and no crossover, so use the quieter 0x30
+setting that upstream already suggests in a comment.
+
+--- a/codecs/cirrus/patch_cirrus_real84.h	2026-10-18 12:39:07.950214268 +0200
++++ b/codecs/cirrus/patch_cirrus_real84.h	2026-10-18 12:39:07.953010388 +0200
+@@ -1019,8 +1019,8 @@
+                 // use reduced volume - from 0x01 to 0x30 - now passing as argument
+                 // change channel mapping - make a standard left/right pair
+                 // so 1st 2 channels are tweeters, 2nd 2 channels are woofers
+-                cs_8409_setup_amp_max(codec, 0x64, 0x01, 0x00);
+-                cs_8409_setup_amp_max(codec, 0x62, 0x01, 0x02);
++                cs_8409_setup_amp_max(codec, 0x64, 0x30, 0x00);
++                cs_8409_setup_amp_max(codec, 0x62, 0x30, 0x02);
+                 // use reduced volume - from 0x01 to 0x30 - now passing as argument
+                 //cs_8409_setup_amp_max(codec, 0x64, 0x30, 0x00);
+                 //cs_8409_setup_amp_max(codec, 0x62, 0x30, 0x02);
+@@ -1172,8 +1172,8 @@
+                 // use reduced volume - from 0x01 to 0x30 - now passing as argument
+                 // change channel mapping - make a standard left/right pair
+                 // so 1st 2 channels are tweeters, 2nd 2 channels are woofers
+-                cs_8409_setup_amp_max(codec, 0x74, 0x01, 0x01);
+-                cs_8409_setup_amp_max(codec, 0x72, 0x01, 0x03);
++                cs_8409_setup_amp_max(codec, 0x74, 0x30, 0x01);
++                cs_8409_setup_amp_max(codec, 0x72, 0x30, 0x03);
+                 // use reduced volume - from 0x01 to 0x30 - now passing as argument
+                 //cs_8409_setup_amp_max(codec, 0x74, 0x30, 0x01);
+                 //cs_8409_setup_amp_max(codec, 0x72, 0x30, 0x03);

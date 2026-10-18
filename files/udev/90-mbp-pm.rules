@@ -1,0 +1,6 @@
+# MacBook Pro 2017: keep PCI devices out of D3cold and bridges/Thunderbolt awake,
+# otherwise s2idle resume loses devices. "bind" is needed because nhi/xhci/pcieport
+# reset power/control to "auto" when they bind.
+ACTION=="add|bind", SUBSYSTEM=="pci", TEST=="d3cold_allowed", ATTR{d3cold_allowed}="0"
+ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{class}=="0x060400", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x8086", ATTR{device}=="0x15d2|0x15d4", TEST=="power/control", ATTR{power/control}="on"

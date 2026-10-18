@@ -1,0 +1,4 @@
+Subset of Ubuntu linux-source-7.0.0 7.0.0-38.38 (upstream 7.0.14 + Ubuntu patches),
+from pool/main/l/linux/linux-source-7.0.0_7.0.0-38.38_all.deb
+(SHA256 997a13a0c7fd0172a93b0c1ae9a4ffc7d3cbbf91d2fdd91d85334193580687de, matches apt metadata).
+Used only for kernel 7.0.0-38-*; other ABIs fetch their own matching linux-source.

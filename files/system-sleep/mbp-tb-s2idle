@@ -1,0 +1,37 @@
+#!/bin/sh
+# MacBook Pro 2017 / Alpine Ridge: on suspend the thunderbolt driver sets "LC sleep" on the host router.
+# With s2idle the power stays on, the router never wakes up -> USB-C xHCI gone until reboot.
+# Workaround: unbind thunderbolt from the NHIs (8086:15d2) before sleep, re-bind after resume.
+STATE=/run/mbp-tb-s2idle.unbound
+DRV=/sys/bus/pci/drivers/thunderbolt
+log() { logger -t mbp-tb-s2idle "$*"; }
+case "$1" in
+pre)
+  case "$2" in suspend|suspend-then-hibernate) ;; *) exit 0 ;; esac
+  : > "$STATE"
+  for d in /sys/bus/pci/devices/*; do
+    [ "$(cat "$d/vendor")" = 0x8086 ] && [ "$(cat "$d/device")" = 0x15d2 ] || continue
+    [ "$(basename "$(readlink -f "$d/driver" 2>/dev/null)")" = thunderbolt ] || continue
+    a=${d##*/}
+    if echo "$a" > "$DRV/unbind"; then echo "$a" >> "$STATE"; log "unbound $a"; else log "unbind $a failed"; fi
+  done
+  ;;
+post)
+  [ -s "$STATE" ] || exit 0
+  [ -d "$DRV" ] || modprobe thunderbolt
+  while read -r a; do
+    p=/sys/bus/pci/devices/$a
+    [ -e "$p" ] || { log "$a missing after resume"; continue; }
+    i=0
+    while [ $i -lt 30 ] && [ "$(od -An -tx4 -N4 "$p/config" 2>/dev/null | tr -d ' ')" != 15d28086 ]; do sleep 0.1; i=$((i+1)); done
+    if echo "$a" > "$DRV/bind"; then log "bound $a"; else log "bind $a failed cfg=$(od -An -tx4 -N4 "$p/config" | tr -d ' ')"; fi
+    echo on > "$p/power/control" 2>/dev/null
+  done < "$STATE"
+  rm -f "$STATE"
+  for x in /sys/bus/pci/devices/*; do
+    [ "$(cat "$x/vendor")" = 0x8086 ] && [ "$(cat "$x/device")" = 0x15d4 ] && echo on > "$x/power/control"
+  done
+  log "AR xHCI: $(lspci -d 8086:15d4 | wc -l), root hubs: $(ls -d /sys/bus/usb/devices/usb* | wc -l)"
+  ;;
+esac
+exit 0

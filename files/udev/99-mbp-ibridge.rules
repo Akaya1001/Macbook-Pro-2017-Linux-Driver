@@ -1,0 +1,5 @@
+# Apple T1 iBridge (Touch Bar, FaceTime camera, ambient light sensor):
+# force USB configuration 1, no runtime autosuspend, no wakeup.
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="05ac", ATTR{idProduct}=="8600", ATTR{bConfigurationValue}!="1", ATTR{bConfigurationValue}="1"
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="05ac", ATTR{idProduct}=="8600", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="bind", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="05ac", ATTR{idProduct}=="8600", TEST=="power/wakeup", ATTR{power/wakeup}="disabled"

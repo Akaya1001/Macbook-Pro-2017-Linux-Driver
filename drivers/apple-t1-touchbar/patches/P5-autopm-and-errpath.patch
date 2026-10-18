@@ -1,0 +1,85 @@
+--- apple-ib-tb.c.p4	2026-10-03 17:20:57.743729121 +0200
++++ apple-ib-tb.c	2026-10-03 17:20:57.768164075 +0200
+@@ -358,7 +358,6 @@
+ 	unsigned char pending_mode;
+ 	unsigned char pending_disp;
+ 	unsigned char current_disp;
+-	bool restore_autopm;
+ 	bool any_tb_key_pressed, need_reschedule;
+ 	int rc1 = 1, rc2 = 1;
+ 	unsigned long flags;
+@@ -368,7 +367,6 @@
+ 	/* handle explicit mode-change request */
+ 	pending_mode = tb_dev->pnd_tb_mode;
+ 	pending_disp = tb_dev->pnd_tb_disp;
+-	restore_autopm = tb_dev->restore_autopm;
+ 
+ 	spin_unlock_irqrestore(&tb_dev->tb_lock, flags);
+ 
+@@ -380,9 +378,6 @@
+ 	if (pending_disp != APPLETB_CMD_DISP_NONE)
+ 		rc2 = appletb_set_tb_disp(tb_dev, pending_disp);
+ 
+-	if (restore_autopm && tb_dev->tb_autopm_off)
+-		appletb_disable_autopm(tb_dev->disp_field->report->device);
+-
+ 	spin_lock_irqsave(&tb_dev->tb_lock, flags);
+ 
+ 	need_reschedule = false;
+@@ -1018,6 +1013,17 @@
+ 	    !tb_dev->active) {
+ 		tb_dev->active = true;
+ 		activated = true;
++
++		/* tb_dev outlives remove/probe; start from a clean state */
++		tb_dev->tb_autopm_off = false;
++		tb_dev->restore_autopm = false;
++		tb_dev->cur_tb_mode = APPLETB_CMD_MODE_OFF;
++		tb_dev->cur_tb_disp = APPLETB_CMD_DISP_OFF;
++		tb_dev->last_fn_pressed = false;
++		memset(tb_dev->last_tb_keys_pressed, 0,
++		       sizeof(tb_dev->last_tb_keys_pressed));
++		memset(tb_dev->last_tb_keys_translated, 0,
++		       sizeof(tb_dev->last_tb_keys_translated));
+ 	}
+ 
+ 	spin_unlock_irqrestore(&tb_dev->tb_lock, flags);
+@@ -1216,8 +1222,11 @@
+ 		appletb_set_tb_mode(tb_dev, APPLETB_CMD_MODE_OFF);
+ 		appletb_set_tb_disp(tb_dev, APPLETB_CMD_DISP_ON);
+ 
+-		if (tb_dev->tb_autopm_off)
++		if (tb_dev->tb_autopm_off) {
+ 			hid_hw_power(tb_dev->disp_iface.hdev, PM_HINT_NORMAL);
++			tb_dev->tb_autopm_off = false;
++		}
++		tb_dev->restore_autopm = false;
+ 
+ 		dev_info(tb_dev->log_dev, "Touchbar deactivated\n");
+ 	}
+@@ -1325,8 +1334,8 @@
+ 	if ((tb_dev->mode_iface.hdev && !tb_dev->mode_iface.suspended) &&
+ 	    (tb_dev->disp_iface.hdev && !tb_dev->disp_iface.suspended)) {
+ 		/*
+-		 * Restore touch bar state. Note that autopm state is not
+-		 * preserved, so need explicitly restore that here.
++		 * Restore touch bar state. The display autopm reference is
++		 * re-taken by appletb_set_tb_disp() via tb_autopm_off.
+ 		 */
+ 		tb_dev->active = true;
+ 		tb_dev->restore_autopm = true;
+--- apple-ibridge.c.p4	2026-10-03 17:20:57.745177560 +0200
++++ apple-ibridge.c	2026-10-03 17:20:57.768395123 +0200
+@@ -381,9 +381,11 @@
+ 			appleib_add_sub_dev(hdev_info, &appleib_sub_hid_ids[i]);
+ 
+ 		if (IS_ERR(hdev_info->sub_hdevs[i])) {
++			struct hid_device *err = hdev_info->sub_hdevs[i];
++
+ 			while (i-- > 0)
+ 				hid_destroy_device(hdev_info->sub_hdevs[i]);
+-			return (void *)hdev_info->sub_hdevs[i];
++			return ERR_CAST(err);
+ 		}
+ 	}
+ 

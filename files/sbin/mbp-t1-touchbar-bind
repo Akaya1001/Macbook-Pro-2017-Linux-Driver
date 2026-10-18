@@ -1,0 +1,25 @@
+#!/bin/bash
+# Bind the Apple T1 iBridge (USB 05ac:8600) to apple-ibridge if generic drivers hold it.
+#   --force : always re-bind
+modprobe apple_ibridge; modprobe apple_ib_tb; modprobe apple_ib_als
+U=
+for i in $(seq 20); do
+    for d in /sys/bus/usb/devices/*; do
+        [ "$(cat "$d/idVendor" 2>/dev/null)" = 05ac ] && [ "$(cat "$d/idProduct" 2>/dev/null)" = 8600 ] && { U=$d; break; }
+    done
+    [ -n "$U" ] && break; sleep 0.5
+done
+[ -n "$U" ] || { echo "no iBridge (05ac:8600) found"; exit 0; }
+PORT=${U##*/}
+[ -w "$U/power/control" ] && echo on > "$U/power/control"
+if [ "${1:-}" != --force ]; then
+    ok=1
+    for d in /sys/bus/hid/devices/*05AC:8600*; do
+        [ "$(basename "$(readlink -f "$d/driver")" 2>/dev/null)" = apple-ibridge-hid ] || ok=0
+    done
+    [ $ok = 1 ] && [ -n "$(ls -d /sys/bus/hid/devices/*1D6B:0301* 2>/dev/null)" ] && { echo "iBridge already bound"; exit 0; }
+fi
+echo -n "$PORT" > /sys/bus/usb/drivers/usb/unbind 2>/dev/null; sleep 1
+echo -n "$PORT" > /sys/bus/usb/drivers_probe; sleep 1
+[ -w "$U/power/control" ] && echo on > "$U/power/control"
+echo "iBridge re-bound ($PORT)"

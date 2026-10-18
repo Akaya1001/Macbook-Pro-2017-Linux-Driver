@@ -1,0 +1,88 @@
+--- apple-ib-tb.c.orig	2026-10-03 16:45:02.023076802 +0200
++++ apple-ib-tb.c	2026-10-03 16:45:02.040382299 +0200
+@@ -132,6 +132,7 @@
+ 
+ struct appletb_device {
+ 	bool			active;
++	bool			registered;	/* inp handler + sysfs set up */
+ 	struct device		*log_dev;
+ 
+ 	struct hid_field	*mode_field;
+@@ -1045,6 +1046,27 @@
+ 	return deactivated;
+ }
+ 
++static bool appletb_test_and_clear_registered(struct appletb_device *tb_dev,
++					       struct hid_device *hdev)
++{
++	unsigned long flags;
++	bool cleared = false;
++
++	spin_lock_irqsave(&tb_dev->tb_lock, flags);
++
++	if (tb_dev->registered &&
++	    (hdev == tb_dev->mode_iface.hdev ||
++	     hdev == tb_dev->disp_iface.hdev)) {
++		tb_dev->registered = false;
++		tb_dev->active = false;
++		cleared = true;
++	}
++
++	spin_unlock_irqrestore(&tb_dev->tb_lock, flags);
++
++	return cleared;
++}
++
+ static const struct input_device_id appletb_input_devices[] = {
+ 	{
+ 		.flags = INPUT_DEVICE_ID_MATCH_BUS |
+@@ -1145,6 +1167,10 @@
+ 			goto unreg_handler;
+ 		}
+ 
++		spin_lock_irqsave(&tb_dev->tb_lock, flags);
++		tb_dev->registered = true;
++		spin_unlock_irqrestore(&tb_dev->tb_lock, flags);
++
+ 		dev_dbg(tb_dev->log_dev, "Touchbar activated\n");
+ 	}
+ 
+@@ -1175,7 +1201,12 @@
+ 	struct appletb_iface_info *iface_info;
+ 	unsigned long flags;
+ 
+-	if (appletb_test_and_mark_inactive(tb_dev, hdev)) {
++	/*
++	 * Use the registration state rather than 'active': suspend clears
++	 * 'active', and skipping the cleanup here would leave the input handler
++	 * registered and corrupt its list on the next probe.
++	 */
++	if (appletb_test_and_clear_registered(tb_dev, hdev)) {
+ 		sysfs_remove_group(&tb_dev->mode_iface.hdev->dev.kobj,
+ 				   &appletb_attr_group);
+ 
+@@ -1349,6 +1380,7 @@
+ 	.input_configured = appletb_input_configured,
+ #ifdef CONFIG_PM
+ 	.suspend = appletb_suspend,
++	.resume = appletb_reset_resume,
+ 	.reset_resume = appletb_reset_resume,
+ #endif
+ };
+--- apple-ibridge.c.p1	2026-10-03 16:45:02.024545671 +0200
++++ apple-ibridge.c	2026-10-03 16:45:02.040588798 +0200
+@@ -108,13 +108,11 @@
+ 
+ 	for (i = 0; i < ARRAY_SIZE(hdev_info->sub_hdevs); i++) {
+ 		sub_hdev = hdev_info->sub_hdevs[i];
+-		if (sub_hdev->driver) {
++		if (sub_hdev && sub_hdev->driver) {
+ 			rc = forward(sub_hdev->driver, sub_hdev, args);
+ 			if (rc)
+ 				break;
+ 		}
+-
+-		break;
+ 	}
+ 
+ 	return rc;
